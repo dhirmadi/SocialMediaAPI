@@ -1,11 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify
 from dotenv import load_dotenv
 import os
 import dropbox
 import random
 from flask_cors import CORS
 import logging
-from datetime import datetime, timedelta 
 
 # Load environment variables from .env file
 load_dotenv()
