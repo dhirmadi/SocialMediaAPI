@@ -4,3 +4,4 @@ dropbox>=11.0.0
 Werkzeug==2.0.3
 requests==2.28.1
 Flask-Cors==3.0.10
+python-jose==3.3.0
