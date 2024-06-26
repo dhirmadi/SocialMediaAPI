@@ -2,6 +2,9 @@ import os
 import json
 import random
 import logging
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from functools import wraps
 from urllib.request import urlopen
 
@@ -133,7 +136,6 @@ def verify_decode_jwt(token):
             raise Exception("Token is expired.")
         except jwt.JWTClaimsError:
             unverified_payload = jwt.get_unverified_claims(token)
-            logger.error(f"Incorrect claims. Expected audience: {API_IDENTIFIER}, received audience: {unverified_payload.get('aud')}, expected azp: {AUTH0_CLIENT_ID}, received azp: {unverified_payload.get('azp')}")
             raise Exception("Incorrect claims. Please, check the audience and issuer.")
         except Exception as e:
             logger.error(f"Unable to parse authentication token: {e}")
@@ -152,6 +154,7 @@ def get_random_image():
         result = dbx.files_list_folder(db_folder_paths['default'])
         files = [entry for entry in result.entries if isinstance(entry, dropbox.files.FileMetadata)]
         if not files:
+            send_email("There are no more files to review in Dropbox folder" + api_title)
             return jsonify({'error': 'No files found in Dropbox folder'}), 404
 
         random_file = random.choice(files)
@@ -189,6 +192,43 @@ def move_file():
         return jsonify({'error': str(e)}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+def send_email(message):
+    """
+    Sends an email with the given message to multiple recipients.
+    
+    The SMTP server configuration and the list of recipients are read from environment variables.
+    Parameters:
+    - message: The message to be sent.
+    """
+    # Email configuration from environment variables
+    smtp_server = os.getenv('SMTP_SERVER')
+    smtp_port = os.getenv('SMTP_PORT')
+    smtp_username = os.getenv('SMTP_USERNAME')
+    smtp_password = os.getenv('SMTP_PASSWORD')
+    sender_email = os.getenv('SENDER_EMAIL')
+    receiver_emails = os.getenv('RECEIVER_EMAILS').split(',')  # Assuming RECEIVER_EMAILS is the env variable containing the list of emails
+
+    # Create MIME message
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = ", ".join(receiver_emails)  # Join the list into a string
+    msg['Subject'] = 'A new message from ' + api_title
+    msg.attach(MIMEText(message, 'plain'))
+    
+    try:
+        # Connect to the SMTP server and send the email
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()  # Secure the connection
+            server.login(smtp_username, smtp_password)
+            server.sendmail(sender_email, receiver_emails, msg.as_string())
+        print("Email sent successfully")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
 
 if __name__ == '__main__':
     app.run(debug=is_development)
