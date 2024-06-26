@@ -156,11 +156,10 @@ def get_random_image():
         if not files:
             send_email("There are no more files to review in Dropbox folder" + api_title)
             return jsonify({'error': 'No files found in Dropbox folder'}), 404
-
         random_file = random.choice(files)
         link_url = get_shared_link(dbx, random_file.path_lower)
         image_url = link_url.replace("dl=0", "raw=1")
-        return jsonify({'image_url': image_url, 'id': random_file.id}), 200
+        return jsonify({'image_url': image_url, 'id': random_file.id}), 200  
     except dropbox.exceptions.ApiError as e:
         return jsonify({'error': str(e)}), 500
     except Exception as e:
@@ -171,17 +170,13 @@ def get_random_image():
 def move_file():
     dbx = get_dropbox_client()
     data = request.json
-
     action = data.get('action')
     unique_id = data.get('uniqueID')
-
     if not action or not unique_id:
         return jsonify({'error': 'Missing required parameters'}), 400
-
     folder_path = db_folder_paths.get(action)
     if not folder_path:
         return jsonify({'error': 'Invalid instruction'}), 400
-
     try:
         file_metadata = dbx.files_get_metadata(unique_id)
         file_path = file_metadata.path_lower
