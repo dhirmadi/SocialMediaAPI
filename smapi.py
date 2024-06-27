@@ -36,6 +36,7 @@ db_app = os.getenv('DROPBOX_APP_KEY')
 db_refresh = os.getenv('DROPBOX_REFRESH_TOKEN')
 db_folder_paths = {
     'default': os.getenv('DROPBOX_FOLDER_PATH', '/path/defaultfolder'),
+    'review': os.getenv('DROPBOX_FOLDER_PATH', '/path/defaultfolder'),
     'approve': os.getenv('DROPBOX_FOLDER_APPROVE', '/path/defaultfolder'),
     'delete': os.getenv('DROPBOX_FOLDER_DELETE', '/path/defaultfolder'),
     'rework': os.getenv('DROPBOX_FOLDER_REWORK', '/path/defaultfolder'),
@@ -149,13 +150,19 @@ def welcome():
 @app.route('/image', methods=['GET'])
 @requires_auth
 def get_random_image():
+    folder_name = request.args.get('action', 'default')  # 'default' is the fallback folder name
+    folder_path = db_folder_paths.get(folder_name)
+    logger.debug(f'Folder path for {folder_name}: {folder_path}')
+    if not folder_path:
+        return jsonify({'error': f'Folder {folder_name} not found'}), 404
+
     dbx = get_dropbox_client()
     try:
-        result = dbx.files_list_folder(db_folder_paths['default'])
+        result = dbx.files_list_folder(folder_path)
         files = [entry for entry in result.entries if isinstance(entry, dropbox.files.FileMetadata)]
         if not files:
-            send_email("There are no more files to review in Dropbox folder" + api_title)
-            return jsonify({'error': 'No files found in Dropbox folder'}), 404
+            send_email(f"There are no more files to review in Dropbox folder {folder_name}")
+            return jsonify({'error': f'No files found in Dropbox folder {folder_name}'}), 404
         random_file = random.choice(files)
         link_url = get_shared_link(dbx, random_file.path_lower)
         image_url = link_url.replace("dl=0", "raw=1")
