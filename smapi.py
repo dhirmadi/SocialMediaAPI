@@ -270,37 +270,37 @@ def delete_file():
 @requires_auth
 def store_metadata():
     data = request.json
-    unique_id = data.get('uniqueID')
+    imageID = data.get('imageID')
     description = data.get('description')
     tagline = data.get('tagline')
     hashtags = data.get('hashtags')
 
-    if not unique_id or not description or not tagline or not hashtags:
+    if not imageID or not description or not tagline or not hashtags:
         return jsonify({'error': 'Missing required parameters'}), 400
 
     metadata = {
-        'uniqueID': unique_id,
+        'imageID': imageID,
         'description': description,
         'tagline': tagline,
         'hashtags': hashtags
     }
 
-    collection.update_one({'uniqueID': unique_id}, {'$set': metadata}, upsert=True)
+    collection.update_one({'imageID': imageID}, {'$set': metadata}, upsert=True)
 
     return jsonify({'message': 'Metadata stored successfully'}), 200
 
-@app.route('/retrievecomment/<unique_id>', methods=['GET'])
+@app.route('/retrievecomment/<imageID>', methods=['GET'])
 @requires_auth
-def retrieve_comment(unique_id):
-    metadata = collection.find_one({'uniqueID': unique_id}, {'_id': 0})
+def retrieve_comment(imageID):
+    metadata = collection.find_one({'imageID': imageID}, {'_id': 0})
     logger.debug(metadata)
     if not metadata:
         # Return default values if no metadata is found
         metadata = {
-            'uniqueID': unique_id,
-            'description': 'Please enter data',
-            'tagline': 'Please enter data',
-            'hashtags': ['Please enter data']
+            'imageID': imageID,
+            'description': 'Please enter description',
+            'tagline': 'Please enter tagline',
+            'hashtags': ['Please enter hashtags with comas']
         }
         # return jsonify(default_metadata), 200
     logger.debug(metadata)
