@@ -7,8 +7,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
 from urllib.request import urlopen
-
-from flask import Flask, jsonify, request, _request_ctx_stack
+from flask import Flask, jsonify, request
+from flask.ctx import _request_ctx_stack
 from flask_cors import CORS
 from dotenv import load_dotenv
 from jose import jwt
@@ -48,6 +48,39 @@ AUTH0_CLIENT_ID = os.getenv('AUTH0_CLIENT_ID')
 AUTH0_AUDIENCE = os.getenv('AUTH0_AUDIENCE')
 API_IDENTIFIER = os.getenv('API_IDENTIFIER')
 ALGORITHMS = ["RS256"]
+
+def send_email(message):
+    """
+    Sends an email with the given message to multiple recipients.
+    
+    The SMTP server configuration and the list of recipients are read from environment variables.
+    Parameters:
+    - message: The message to be sent.
+    """
+    # Email configuration from environment variables
+    smtp_server = os.getenv('SMTP_SERVER')
+    smtp_port = os.getenv('SMTP_PORT')
+    smtp_username = os.getenv('SMTP_USERNAME')
+    smtp_password = os.getenv('SMTP_PASSWORD')
+    sender_email = os.getenv('SENDER_EMAIL')
+    receiver_emails = os.getenv('RECEIVER_EMAILS').split(',')  # Assuming RECEIVER_EMAILS is the env variable containing the list of emails
+
+    # Create MIME message
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = ", ".join(receiver_emails)  # Join the list into a string
+    msg['Subject'] = 'A new message from ' + api_title
+    msg.attach(MIMEText(message, 'plain'))
+    
+    try:
+        # Connect to the SMTP server and send the email
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()  # Secure the connection
+            server.login(smtp_username, smtp_password)
+            server.sendmail(sender_email, receiver_emails, msg.as_string())
+        print("Email sent successfully")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
 
 def get_dropbox_client():
     """
@@ -194,43 +227,36 @@ def move_file():
         return jsonify({'error': str(e)}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-import os
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
-def send_email(message):
-    """
-    Sends an email with the given message to multiple recipients.
-    
-    The SMTP server configuration and the list of recipients are read from environment variables.
-    Parameters:
-    - message: The message to be sent.
-    """
-    # Email configuration from environment variables
-    smtp_server = os.getenv('SMTP_SERVER')
-    smtp_port = os.getenv('SMTP_PORT')
-    smtp_username = os.getenv('SMTP_USERNAME')
-    smtp_password = os.getenv('SMTP_PASSWORD')
-    sender_email = os.getenv('SENDER_EMAIL')
-    receiver_emails = os.getenv('RECEIVER_EMAILS').split(',')  # Assuming RECEIVER_EMAILS is the env variable containing the list of emails
+#delete route
+@app.route('/delete', methods=['POST'])
+@requires_auth
+def delete_file():
+    if is_development:
+        logger.debug('Delete file route called')
 
-    # Create MIME message
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = ", ".join(receiver_emails)  # Join the list into a string
-    msg['Subject'] = 'A new message from ' + api_title
-    msg.attach(MIMEText(message, 'plain'))
-    
+    dbx = get_dropbox_client()
+    data = request.json
+    uniqueID = data.get('uniqueID')
+
+    if uniqueID is None:
+        return jsonify({'error': 'Missing required parameter: uniqueID'}), 400
+
     try:
-        # Connect to the SMTP server and send the email
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()  # Secure the connection
-            server.login(smtp_username, smtp_password)
-            server.sendmail(sender_email, receiver_emails, msg.as_string())
-        print("Email sent successfully")
+        # get path from file meta data
+        file_metadata = dbx.files_get_metadata(uniqueID)
+        file_path = file_metadata.path_lower
+
+        # Delete the file
+        dbx.files_delete_v2(file_path)
+        return jsonify({'message': 'File deleted successfully'}), 200
+
+    except dropbox.exceptions.ApiError as e:
+        return jsonify({'error': 'Failed to delete file', 'details': str(e)}), 400
     except Exception as e:
-        print(f"Failed to send email: {e}")
+        return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
+
+
 
 if __name__ == '__main__':
     app.run(debug=is_development)
