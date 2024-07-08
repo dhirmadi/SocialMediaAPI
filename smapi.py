@@ -13,6 +13,8 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from jose import jwt
 import dropbox
+from functools import wraps
+from pymongo import MongoClient
 
 # Load environment variables from .env file
 load_dotenv()
@@ -48,6 +50,14 @@ AUTH0_CLIENT_ID = os.getenv('AUTH0_CLIENT_ID')
 AUTH0_AUDIENCE = os.getenv('AUTH0_AUDIENCE')
 API_IDENTIFIER = os.getenv('API_IDENTIFIER')
 ALGORITHMS = ["RS256"]
+
+# MongoDB connection
+mongodb_uri = os.getenv('MONGODB_URI')
+mongodb_database = os.getenv('MONGODB_DATABASE')
+mongodb_collection = os.getenv('MONGODB_COLLECTION')
+mongo_client = MongoClient(mongodb_uri)
+db = mongo_client[mongodb_database]
+collection = db[mongodb_collection]
 
 def send_email(message):
     """
@@ -256,7 +266,40 @@ def delete_file():
     except Exception as e:
         return jsonify({'error': 'An error occurred', 'details': str(e)}), 500
 
+@app.route('/storecomment', methods=['POST'])
+@requires_auth
+def store_metadata():
+    data = request.json
+    unique_id = data.get('uniqueID')
+    description = data.get('description')
+    tagline = data.get('tagline')
+    hashtags = data.get('hashtags')
 
+    if not unique_id or not description or not tagline or not hashtags:
+        return jsonify({'error': 'Missing required parameters'}), 400
+
+    metadata = {
+        'uniqueID': unique_id,
+        'description': description,
+        'tagline': tagline,
+        'hashtags': hashtags
+    }
+
+    collection.update_one({'uniqueID': unique_id}, {'$set': metadata}, upsert=True)
+
+    return jsonify({'message': 'Metadata stored successfully'}), 200
+
+@app.route('/retrievecomment', methods=['GET'])
+@requires_auth
+def retrieve_metadata():
+    data = request.json
+    uniqueID = data.get('uniqueID')
+    metadata = collection.find_one({'uniqueID': uniqueID}, {'_id': 0})
+
+    if not metadata:
+        return jsonify({'error': 'Metadata not found'}), 404
+
+    return jsonify(metadata), 200
 
 if __name__ == '__main__':
     app.run(debug=is_development)
