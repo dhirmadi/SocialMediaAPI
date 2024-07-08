@@ -79,21 +79,24 @@ def query_openai(prompt, systemcontent, rolecontent):
         return "No description possible for OpenAI"
     
 def query_replicate(temp_image_link):
+    logger.debug(f"Image link: {temp_image_link}")
     try:
+        model=os.getenv('REPLICATE_MODEL')
         mood = replicate.run(
-            configuration['replicate_model'],
+            model,
                 input={
                 "image": temp_image_link,
-                "caption": False,
+                "caption": True,
                 "question": "What is the mood for this image?",
                 "temperature": 1,
                 "use_nucleus_sampling": False
                 }
         )
+        return mood
     except Exception as e:
         logger.error(f"Failed to get decsription of image from replicate: {e}")
-        mood="No description possible"
-    return mood
+        
+
 
 def send_email(message):
     """
@@ -362,6 +365,7 @@ def identify_image():
     if not temp_image_link:
         return jsonify({'error': 'Missing required parameters'}), 400
     mood = query_replicate(temp_image_link)
+    logger.debug(f"Image mood: {mood}")
     return jsonify({'mood': mood}), 200
 
 if __name__ == '__main__':
