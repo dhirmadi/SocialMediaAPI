@@ -289,17 +289,23 @@ def store_metadata():
 
     return jsonify({'message': 'Metadata stored successfully'}), 200
 
-@app.route('/retrievecomment', methods=['GET'])
+@app.route('/retrievecomment/<unique_id>', methods=['GET'])
 @requires_auth
-def retrieve_metadata():
-    data = request.json
-    uniqueID = data.get('uniqueID')
-    metadata = collection.find_one({'uniqueID': uniqueID}, {'_id': 0})
-
+def retrieve_comment(unique_id):
+    metadata = collection.find_one({'uniqueID': unique_id}, {'_id': 0})
+    logger.debug(metadata)
     if not metadata:
-        return jsonify({'error': 'Metadata not found'}), 404
-
+        # Return default values if no metadata is found
+        metadata = {
+            'uniqueID': unique_id,
+            'description': 'Please enter data',
+            'tagline': 'Please enter data',
+            'hashtags': ['Please enter data']
+        }
+        # return jsonify(default_metadata), 200
+    logger.debug(metadata)
     return jsonify(metadata), 200
+
 
 if __name__ == '__main__':
     app.run(debug=is_development)
