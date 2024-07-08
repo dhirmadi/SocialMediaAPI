@@ -15,6 +15,8 @@ from jose import jwt
 import dropbox
 from functools import wraps
 from pymongo import MongoClient
+import replicate
+import openai
 
 # Load environment variables from .env file
 load_dotenv()
@@ -58,6 +60,40 @@ mongodb_collection = os.getenv('MONGODB_COLLECTION')
 mongo_client = MongoClient(mongodb_uri)
 db = mongo_client[mongodb_database]
 collection = db[mongodb_collection]
+
+def query_openai(prompt, systemcontent, rolecontent):
+    api_key = os.getenv('OPENAI_API_KEY')
+    client = openai.OpenAI(api_key=api_key)
+    engine=os.getenv('OPENAI_ENGINE')
+    try:
+        response = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": systemcontent},
+                {"role": "user", "content": rolecontent + " " + prompt}
+            ],
+            model=engine
+        )
+        return response.choices[0].message.content
+    except openai.APIError as e:
+        logger.error(f"An error occurred: {e}")
+        return "No description possible for OpenAI"
+    
+def query_replicate(temp_image_link):
+    try:
+        mood = replicate.run(
+            configuration['replicate_model'],
+                input={
+                "image": temp_image_link,
+                "caption": False,
+                "question": "What is the mood for this image?",
+                "temperature": 1,
+                "use_nucleus_sampling": False
+                }
+        )
+    except Exception as e:
+        logger.error(f"Failed to get decsription of image from replicate: {e}")
+        mood="No description possible"
+    return mood
 
 def send_email(message):
     """
@@ -306,6 +342,27 @@ def retrieve_comment(imageID):
     logger.debug(metadata)
     return jsonify(metadata), 200
 
+@app.route('/generate', methods=['POST'])
+@requires_auth
+def generate_description():
+    data = request.json
+    systemcontent = data.get('systemcontent')
+    rolecontent = data.get('rolecontent')
+    prompt = data.get('prompt')
+    if not systemcontent or not rolecontent or not prompt:
+        return jsonify({'error': 'Missing required parameters'}), 400
+    description = query_openai(prompt, systemcontent, rolecontent)
+    return jsonify({'description': description}), 200
+
+@app.route('/identifyimage', methods=['POST'])
+@requires_auth
+def identify_image():
+    data = request.json
+    temp_image_link = data.get('image_link')
+    if not temp_image_link:
+        return jsonify({'error': 'Missing required parameters'}), 400
+    mood = query_replicate(temp_image_link)
+    return jsonify({'mood': mood}), 200
 
 if __name__ == '__main__':
     app.run(debug=is_development)
