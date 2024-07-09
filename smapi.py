@@ -345,10 +345,11 @@ def retrieve_comment(imageID):
     logger.debug(metadata)
     return jsonify(metadata), 200
 
-@app.route('/generate', methods=['POST'])
+@app.route('/generatedescription', methods=['POST'])
 @requires_auth
 def generate_description():
     data = request.json
+    logger.debug(data)
     systemcontent = data.get('systemcontent')
     rolecontent = data.get('rolecontent')
     prompt = data.get('prompt')
@@ -365,7 +366,6 @@ def identify_image():
     if not temp_image_link:
         return jsonify({'error': 'Missing required parameters'}), 400
     mood = query_replicate(temp_image_link)
-    logger.debug(f"Image mood: {mood}")
     return jsonify({'mood': mood}), 200
 
 if __name__ == '__main__':
