@@ -60,7 +60,6 @@ mongodb_collection = os.getenv('MONGODB_COLLECTION')
 try:
     mongo_client = MongoClient(
         mongodb_uri,
-        serverSelectionTimeoutMS=30000,
         connectTimeoutMS=30000,
         socketTimeoutMS=None,
         connect=False,
