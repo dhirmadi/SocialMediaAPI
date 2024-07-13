@@ -57,9 +57,23 @@ ALGORITHMS = ["RS256"]
 mongodb_uri = os.getenv('MONGODB_URI')
 mongodb_database = os.getenv('MONGODB_DATABASE')
 mongodb_collection = os.getenv('MONGODB_COLLECTION')
-mongo_client = MongoClient(mongodb_uri)
-db = mongo_client[mongodb_database]
-collection = db[mongodb_collection]
+try:
+    mongo_client = MongoClient(
+        mongodb_uri,
+        serverSelectionTimeoutMS=30000,
+        connectTimeoutMS=30000,
+        socketTimeoutMS=None,
+        connect=False,
+        maxPoolSize=1
+    )
+    db = mongo_client[mongodb_database]
+    collection = db[mongodb_collection]
+    # Test the connection
+    mongo_client.server_info()
+    logger.info('Connected to MongoDB')
+except Exception as e:
+    logger.error(f'MongoDB connection error: {e}')
+    raise
 
 def query_openai(prompt, systemcontent, rolecontent):
     api_key = os.getenv('OPENAI_API_KEY')
