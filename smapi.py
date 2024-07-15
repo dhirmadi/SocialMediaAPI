@@ -69,7 +69,7 @@ try:
     collection = db[mongodb_collection]
     # Test the connection
     mongo_client.server_info()
-    logger.info('Connected to MongoDB')
+    # logger.info('Connected to MongoDB')
 except Exception as e:
     logger.error(f'MongoDB connection error: {e}')
     raise
@@ -92,7 +92,7 @@ def query_openai(prompt, systemcontent, rolecontent):
         return "No description possible for OpenAI"
     
 def query_replicate(temp_image_link):
-    logger.debug(f"Image link: {temp_image_link}")
+    # logger.debug(f"Image link: {temp_image_link}")
     try:
         model=os.getenv('REPLICATE_MODEL')
         mood = replicate.run(
@@ -109,8 +109,6 @@ def query_replicate(temp_image_link):
     except Exception as e:
         logger.error(f"Failed to get decsription of image from replicate: {e}")
         
-
-
 def send_email(message):
     """
     Sends an email with the given message to multiple recipients.
@@ -247,7 +245,7 @@ def welcome():
 def get_random_image():
     folder_name = request.args.get('action', 'default')  # 'default' is the fallback folder name
     folder_path = db_folder_paths.get(folder_name)
-    logger.debug(f'Folder path for {folder_name}: {folder_path}')
+    # logger.debug(f'Folder path for {folder_name}: {folder_path}')
     if not folder_path:
         return jsonify({'error': f'Folder {folder_name} not found'}), 404
 
@@ -326,6 +324,7 @@ def store_metadata():
     description = data.get('description')
     tagline = data.get('tagline')
     hashtags = data.get('hashtags')
+    nsfw = data.get('nsfw')
 
     if not imageID or not description or not tagline or not hashtags:
         return jsonify({'error': 'Missing required parameters'}), 400
@@ -334,7 +333,8 @@ def store_metadata():
         'imageID': imageID,
         'description': description,
         'tagline': tagline,
-        'hashtags': hashtags
+        'hashtags': hashtags,
+        'nsfw': nsfw
     }
 
     collection.update_one({'imageID': imageID}, {'$set': metadata}, upsert=True)
@@ -352,7 +352,8 @@ def retrieve_comment(imageID):
             'imageID': imageID,
             'description': 'Please enter description',
             'tagline': 'Please enter tagline',
-            'hashtags': ['Please enter hashtags with comas']
+            'hashtags': ['Please enter hashtags with comas'],
+            'nsfw': True
         }
         # return jsonify(default_metadata), 200
     logger.debug(metadata)
