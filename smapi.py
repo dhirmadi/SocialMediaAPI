@@ -68,7 +68,7 @@ try:
     db = mongo_client[mongodb_database]
     collection = db[mongodb_collection]
     # Test the connection
-    mongo_client.server_info()
+    # mongo_client.server_info()
     # logger.info('Connected to MongoDB')
 except Exception as e:
     logger.error(f'MongoDB connection error: {e}')
@@ -324,8 +324,9 @@ def store_metadata():
     description = data.get('description')
     tagline = data.get('tagline')
     hashtags = data.get('hashtags')
-    nsfw = data.get('nsfw')
-
+    nsfw = data.get('nsfw', False)
+    # debug data
+    logger.debug(data)
     if not imageID or not description or not tagline or not hashtags:
         return jsonify({'error': 'Missing required parameters'}), 400
 
@@ -336,9 +337,7 @@ def store_metadata():
         'hashtags': hashtags,
         'nsfw': nsfw
     }
-
     collection.update_one({'imageID': imageID}, {'$set': metadata}, upsert=True)
-
     return jsonify({'message': 'Metadata stored successfully'}), 200
 
 @app.route('/retrievecomment/<imageID>', methods=['GET'])
@@ -356,7 +355,6 @@ def retrieve_comment(imageID):
             'nsfw': True
         }
         # return jsonify(default_metadata), 200
-    logger.debug(metadata)
     return jsonify(metadata), 200
 
 @app.route('/generatedescription', methods=['POST'])
