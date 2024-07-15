@@ -44,6 +44,7 @@ db_folder_paths = {
     'approve': os.getenv('DROPBOX_FOLDER_APPROVE', '/path/defaultfolder'),
     'delete': os.getenv('DROPBOX_FOLDER_DELETE', '/path/defaultfolder'),
     'rework': os.getenv('DROPBOX_FOLDER_REWORK', '/path/defaultfolder'),
+    'publish': os.getenv('DROPBOX_FOLDER_PUBLISH', '/path/defaultfolder')
 }
 
 # Auth0 variables
