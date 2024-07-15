@@ -8,3 +8,4 @@ python-jose==3.3.0
 pymongo>=4.8.0
 openai>=1.7.2
 replicate>=0.22.0
+instagrapi==2.1.2
