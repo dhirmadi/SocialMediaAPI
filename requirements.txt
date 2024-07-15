@@ -9,3 +9,4 @@ pymongo>=4.8.0
 openai>=1.7.2
 replicate>=0.22.0
 instagrapi==2.1.2
+Pillow>=8.0.0
