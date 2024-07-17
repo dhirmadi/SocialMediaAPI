@@ -5,6 +5,7 @@ import random
 from dotenv import load_dotenv
 import logging
 from instagrapi import Client
+import requests
 
 # Load environment variables from .env file
 load_dotenv()
@@ -12,7 +13,7 @@ load_dotenv()
 # Set up logging
 logging.basicConfig(level=logging.INFO)  # Set the logging level as needed
 logger = logging.getLogger(__name__)
-insta_username = os.getenv('INSTAGRAM_USERNAME')
+insta_username = os.getenv('INSTAGRAM_NAME')
 insta_password = os.getenv('INSTAGRAM_PASSWORD')
 
 def get_mongodb_connection():
@@ -48,17 +49,18 @@ def select_random_nsfw_image(collection, dbx):
 
         if filtered_files:
             random_image = random.choice(filtered_files)
-            random_image_metadata = dbx.files_get_metadata(random_image.id)
-            unique_id = random_image_metadata.id
+            unique_id = random_image.id
             temp_link = dbx.files_get_temporary_link(random_image.id).link
             logger.info(f"Randomly selected image's uniqueID: {unique_id}")
             logger.info(f"Temporary download link: {temp_link}")
             
             for data in nsfw_image_data:
                 if data[0] == unique_id:
-                    logger.info(f"Image Description: {data[2]}")
-                    logger.info(f"Hashtags: {data[1]}")
-                    logger.info(f"Tagline: {data[3]}")
+                    image_description = data[2]
+                    image_hashtags = ' '.join(data[1])
+                    caption = f"{image_description}\n\n{image_hashtags}"
+                    image_url = temp_link
+                    publish_to_instagram(insta_username, insta_password, image_url, caption)
 
             archive(dbx, unique_id)
                     
@@ -67,6 +69,7 @@ def select_random_nsfw_image(collection, dbx):
     
     except Exception as e:
         logger.error(f'Error while selecting random NSFW image: {e}')
+    
 
 def archive(dbx, unique_id):
     try:
@@ -94,23 +97,26 @@ def publish_to_instagram(username, password, image_url, caption):
         
         # Download the image from the provided URL
         image_path = "temp_image.jpg"
-        response = client.download(image_url, filename=image_path)
+        response = requests.get(image_url)
         
-        if response:
+        if response.status_code == 200:
+            with open(image_path, 'wb') as file:
+                file.write(response.content)
+
             # Publish the image with caption to Instagram
             media = client.photo_upload(image_path, caption=caption)
             client.media_like(media.pk)
-            client.post_comment(media.pk, caption)
+            # client.media_comment(media.pk, caption) avoid double posting.
             
             # Logout from Instagram
             client.logout()
-            print("Image published successfully to Instagram!")
-            
+            logger.info("Image published successfully to Instagram!")
         else:
-            print("Error downloading image from the provided URL.")
+            logger.error("Error downloading image from the provided URL.")
     
     except Exception as e:
-        print(f"Error publishing image to Instagram: {e}")
+        logger.error(f"Error publishing image to Instagram: {e}")
+
 if __name__ == "__main__":
     try:
         collection = get_mongodb_connection()
